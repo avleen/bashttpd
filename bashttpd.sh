@@ -9,7 +9,13 @@
 # The following TODO items are as much warnings about this program, as anything
 # else :-)
 # TODO: Don't allow URLs with '..'
-# TODO: Don't allow to run as root
+# 
+
+if [ "$(id -u)" = "0" ]; then
+   echo "Hold on, tiger! Don't run this as root, k?" 1>&2
+   exit 1
+fi
+
 
 DOCROOT=/var/www/html
 
