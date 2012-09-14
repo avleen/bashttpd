@@ -6,9 +6,6 @@
 #
 # Avleen Vig, 2012-09-13
 #
-# The following TODO items are as much warnings about this program, as anything
-# else :-)
-# TODO: Don't allow URLs with '..'
 # 
 
 if [ "$(id -u)" = "0" ]; then
@@ -58,6 +55,8 @@ while read line; do
         URL_PATH=$( echo ${URL_PATH} | tr -d '\r' )
     fi
 done
+
+[[ "$URL_PATH" == *..* ]] && echo "HTTP/1.0 400 Bad Request\rn";echo "${REPLY_HEADERS}"; exit 
 
 # If URL_PATH isn't set, return 400
 if [ -z "${URL_PATH}" ]; then
