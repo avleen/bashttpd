@@ -2,7 +2,7 @@ bashttpd is a basic web server.
 
 Requirements:
   1. `bash`, any recent version should work
-  2. `socat` to handle the underlying sockets
+  2. `socat` to handle the underlying sockets (I.e., socat TCP4-LISTEN:8080 EXEC:/usr/local/bin/bashttpd.sh)
   3. A healthy dose of insanity
 
 Features:
