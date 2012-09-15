@@ -13,8 +13,11 @@ if [ "$(id -u)" = "0" ]; then
    exit 1
 fi
 
+[ -r bashttpd.conf ] || cat >bashttpd.conf <<-EOF
+	DOCROOT=/var/www/html
+EOF
 
-DOCROOT=/var/www/html
+source bashttpd.conf
 
 DATE=$( date +"%a, %d %b %Y %H:%M:%S %Z" )
 REPLY_HEADERS="Date: ${DATE}
