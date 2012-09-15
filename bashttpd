@@ -78,28 +78,40 @@ function get_content_length() {
     CONTENT_LENGTH=$( echo ${CONTENT_BODY} | wc -c )
 }
 
-while read line; do
-    # strip trailing CR if it exists
+# Request-Line HTTP RFC 2616 $5.1
+read -r line || fail_bad_request
+
+# strip trailing CR if it exists
+line=${line%%$'\r'}
+recv "$line"
+
+declare -A REQUEST
+declare -A REQUEST_HEADER
+read -r REQUEST['METHOD'] REQUEST['URI'] REQUEST['HTTP_VERSION'] <<<"$line"
+
+[ -n "${REQUEST['METHOD']}" ] && \
+[ -n "${REQUEST['URI']}" ] && \
+[ -n "${REQUEST['HTTP_VERSION']}" ] \
+   || fail_bad_request
+
+# Only GET is supported at this time
+[ "${REQUEST['METHOD']}" = "GET" ] || fail_with 405
+
+while read -r line; do
     line=${line%%$'\r'}
     recv "$line"
+    [ -z "$line" ] && break
 
-    # If we've reached the end of the headers, break.
-    line=$( echo ${line} | tr -d '\r' )
-    echo ${line} | grep '^$' > /dev/null
-    if [ $? -eq 0 ]; then
-        break
-    fi
-
-    # Look for a GET request
-    echo ${line} | grep ^GET > /dev/null
-    if [ $? -eq 0 ]; then
-        URL_PATH="${DOCROOT}$( echo ${line} | cut -d' ' -f2 )"
-        filter_url ${URL_PATH}
-    fi
+    IFS=': ' read -r header value <<<"$line"
+    REQUEST_HEADER[$header]="$value"
 done
 
-[[ "$URL_PATH" == *..* ]] && fail_bad_request
-[ -n "${URL_PATH}" ] || fail_bad_request
+# Prevent URIs with '..'
+[[ "${REQUEST['URI']}" = *..* ]] && fail_bad_request
+
+# Map URI to filesystem path
+URL_PATH="$DOCROOT/${REQUEST['URI']}"
+filter_url "$URL_PATH"
 
 # Check the URL requested.
 # If it's a text file, serve it directly.
