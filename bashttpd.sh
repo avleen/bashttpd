@@ -56,7 +56,12 @@ while read line; do
     fi
 done
 
-[[ "$URL_PATH" == *..* ]] && echo "HTTP/1.0 400 Bad Request\rn";echo "${REPLY_HEADERS}"; exit 
+case "$URL_PATH" in
+*..*)
+    echo "HTTP/1.0 400 Bad Request\r\n"
+    echo "${REPLY_HEADERS}"
+    exit 1;;
+esac
 
 # If URL_PATH isn't set, return 400
 if [ -z "${URL_PATH}" ]; then
