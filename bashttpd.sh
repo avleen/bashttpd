@@ -28,7 +28,7 @@ function filter_url() {
 
 function get_content_type() {
     URL_PATH=$1
-    CONTENT_TYPE=$( file --mime-type ${URL_PATH} | awk '{ print $2 }' )
+    CONTENT_TYPE=$( file -b --mime-type ${URL_PATH} )
 }
 
 function get_content_body() {
@@ -57,7 +57,7 @@ while read line; do
     # Look for a GET request
     echo ${line} | grep ^GET > /dev/null
     if [ $? -eq 0 ]; then
-        URL_PATH="${DOCROOT}$( echo ${line} | awk '{print $2}' )"
+        URL_PATH="${DOCROOT}$( echo ${line} | cut -d' ' -f2 )"
         filter_url ${URL_PATH}
     fi
 done
