@@ -64,12 +64,12 @@ fi
 while read line; do
     # If we've reached the end of the headers, break.
     line=$( echo ${line} | tr -d '\r' )
-    if echo ${line} | grep '^$' > /dev/null; then
+    if [ -z "$line" ]; then
         break
     fi
 
     # Look for a GET request
-    if echo ${line} | grep ^GET > /dev/null; then
+    if [[ $line == GET* ]]; then
         URL_PATH="${DOCROOT}$( echo ${line} | cut -d' ' -f2 )"
         filter_url ${URL_PATH}
     fi
