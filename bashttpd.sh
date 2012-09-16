@@ -50,14 +50,12 @@ function get_content_length() {
 while read line; do
     # If we've reached the end of the headers, break.
     line=$( echo ${line} | tr -d '\r' )
-    echo ${line} | grep '^$' > /dev/null
-    if [ $? -eq 0 ]; then
+    if echo ${line} | grep '^$' > /dev/null; then
         break
     fi
 
     # Look for a GET request
-    echo ${line} | grep ^GET > /dev/null
-    if [ $? -eq 0 ]; then
+    if echo ${line} | grep ^GET > /dev/null; then
         URL_PATH="${DOCROOT}$( echo ${line} | cut -d' ' -f2 )"
         filter_url ${URL_PATH}
     fi
