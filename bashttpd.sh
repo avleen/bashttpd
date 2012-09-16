@@ -94,9 +94,15 @@ elif [ -f ${URL_PATH} -a ! -r ${URL_PATH} ]; then
     echo
     exit
 elif [ -d ${URL_PATH} ]; then
-    # Return 200 for directory listings
-    CONTENT_TYPE="text/plain"
-    CONTENT_BODY=$( tree -H "" ${URL_PATH} )
+    # Return 200 for directory listings.
+    # If `tree` is installed, use that for pretty output.
+    if [ -x "$( which tree )" ]; then
+        CONTENT_TYPE="text/html"
+        CONTENT_BODY=$( tree -H "" ${URL_PATH} )
+    else
+        CONTENT_TYPE="text/plain"
+        CONTENT_BODY=$( ls -la ${URL_PATH} )
+    fi
     CONTENT_LENGTH=$(echo "${CONTENT_BODY}" | wc -c)
     HTTP_RESPONSE="HTTP/1.0 200 OK"
 elif [ -d ${URL_PATH} -a ! -x ${URL_PATH} ]; then
