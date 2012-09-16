@@ -7,7 +7,7 @@ set -x
 #
 # Avleen Vig, 2012-09-13
 #
-# 
+#
 
 if [ "$(id -u)" = "0" ]; then
    echo "Hold on, tiger! Don't run this as root, k?" 1>&2
@@ -64,7 +64,7 @@ done
 if [[ "$URL_PATH" == *..* ]]; then
     echo "HTTP/1.0 400 Bad Request\rn"
     echo "${REPLY_HEADERS}"
-    exit 
+    exit
 fi
 
 # If URL_PATH isn't set, return 400
