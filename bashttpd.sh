@@ -101,7 +101,7 @@ elif [ -f ${URL_PATH} -a ! -r ${URL_PATH} ]; then
 elif [ -d ${URL_PATH} ]; then
     # Return 200 for directory listings.
     # If `tree` is installed, use that for pretty output.
-    if [ -x "$( which tree )" ]; then
+    if which tree >/dev/null; then
         CONTENT_TYPE="text/html"
         CONTENT_BODY=$( tree -H "" -L 1 --du -D ${URL_PATH} )
     else
