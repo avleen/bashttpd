@@ -1,4 +1,5 @@
-#!/usr/bin/env bash -x
+#!/usr/bin/env bash
+set -x
 
 # A simple HTTP server written in bash.
 #
@@ -6,15 +7,15 @@
 #
 # Avleen Vig, 2012-09-13
 #
-# 
+#
 
 if [ "$(id -u)" = "0" ]; then
    echo "Hold on, tiger! Don't run this as root, k?" 1>&2
    exit 1
 fi
 
-
-DOCROOT=/var/www/html
+# Use default /var/www/html if DOCROOT is not set.
+: ${DOCROOT:=/var/www/html}
 
 DATE=$( date +"%a, %d %b %Y %H:%M:%S %Z" )
 REPLY_HEADERS="Date: ${DATE}
@@ -46,17 +47,29 @@ function get_content_length() {
     CONTENT_LENGTH=$( echo ${CONTENT_BODY} | wc -c )
 }
 
+function serve_500() {
+    echo "HTTP/1.0 500 Internal Server Error"
+    echo "$REPLY_HEADERS"
+    echo "Content-Type: text/plain"
+    echo
+    echo "Internal Server Error"
+    exit
+}
+
+if ! [ -d "$DOCROOT" ]; then
+    echo >&2 "Error: \$DOCROOT '$DOCROOT' does not exist."
+    serve_500
+fi
+
 while read line; do
     # If we've reached the end of the headers, break.
     line=$( echo ${line} | tr -d '\r' )
-    echo ${line} | grep '^$' > /dev/null
-    if [ $? -eq 0 ]; then
+    if [ -z "$line" ]; then
         break
     fi
 
     # Look for a GET request
-    echo ${line} | grep ^GET > /dev/null
-    if [ $? -eq 0 ]; then
+    if [[ $line == GET* ]]; then
         URL_PATH="${DOCROOT}$( echo ${line} | cut -d' ' -f2 )"
         filter_url ${URL_PATH}
     fi
@@ -65,7 +78,7 @@ done
 if [[ "$URL_PATH" == *..* ]]; then
     echo "HTTP/1.0 400 Bad Request\rn"
     echo "${REPLY_HEADERS}"
-    exit 
+    exit
 fi
 
 # If URL_PATH isn't set, return 400
@@ -123,7 +136,7 @@ else
     exit
 fi
 
-echo -n "${HTTP_RESPONSE}"
+echo "${HTTP_RESPONSE}"
 echo "${REPLY_HEADERS}"
 #echo "Content-length: ${CONTENT_LENGTH}"
 echo "Content-type: ${CONTENT_TYPE}"
