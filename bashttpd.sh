@@ -136,7 +136,7 @@ else
     exit
 fi
 
-echo -n "${HTTP_RESPONSE}"
+echo "${HTTP_RESPONSE}"
 echo "${REPLY_HEADERS}"
 #echo "Content-length: ${CONTENT_LENGTH}"
 echo "Content-type: ${CONTENT_TYPE}"
