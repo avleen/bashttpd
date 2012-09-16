@@ -76,6 +76,11 @@ if [ -z "${URL_PATH}" ]; then
     exit
 fi
 
+# Serve index file if exists in requested directory
+if [ -d ${URL_PATH} -a -f ${URL_PATH}/index.html -a -r ${URL_PATH}/index.html ]; then
+    URL_PATH=${URL_PATH}/index.html
+fi
+
 # Check the URL requested.
 # If it's a text file, serve it directly.
 # If it's a binary file, base64 encode it first.
