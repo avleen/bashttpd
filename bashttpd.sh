@@ -47,6 +47,20 @@ function get_content_length() {
     CONTENT_LENGTH=$( echo ${CONTENT_BODY} | wc -c )
 }
 
+function serve_500() {
+    echo "HTTP/1.0 500 Internal Server Error"
+    echo "$REPLY_HEADERS"
+    echo "Content-Type: text/plain"
+    echo
+    echo "Internal Server Error"
+    exit
+}
+
+if ! [ -d "$DOCROOT" ]; then
+    echo >&2 "Error: \$DOCROOT '$DOCROOT' does not exist."
+    serve_500
+fi
+
 while read line; do
     # If we've reached the end of the headers, break.
     line=$( echo ${line} | tr -d '\r' )
