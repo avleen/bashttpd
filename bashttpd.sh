@@ -14,8 +14,8 @@ if [ "$(id -u)" = "0" ]; then
    exit 1
 fi
 
-
-DOCROOT=/var/www/html
+# Use default /var/www/html if DOCROOT is not set.
+: ${DOCROOT:=/var/www/html}
 
 DATE=$( date +"%a, %d %b %Y %H:%M:%S %Z" )
 REPLY_HEADERS="Date: ${DATE}
