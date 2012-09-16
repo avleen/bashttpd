@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash -x
 
 # A simple HTTP server written in bash.
 #
@@ -20,6 +20,11 @@ DATE=$( date +"%a, %d %b %Y %H:%M:%S %Z" )
 REPLY_HEADERS="Date: ${DATE}
 Expires: ${DATE}
 Server: Slash Bin Slash Bash"
+
+function filter_url() {
+    URL_PATH=$1
+    URL_PATH=${URL_PATH//[^a-zA-Z0-9_~\-\.\/]/}
+}
 
 function get_content_type() {
     URL_PATH=$1
@@ -43,7 +48,8 @@ function get_content_length() {
 
 while read line; do
     # If we've reached the end of the headers, break.
-    echo ${line} | grep -v '^GET' > /dev/null
+    line=$( echo ${line} | tr -d '\r' )
+    echo ${line} | grep '^$' > /dev/null
     if [ $? -eq 0 ]; then
         break
     fi
@@ -52,11 +58,15 @@ while read line; do
     echo ${line} | grep ^GET > /dev/null
     if [ $? -eq 0 ]; then
         URL_PATH="${DOCROOT}$( echo ${line} | awk '{print $2}' )"
-        URL_PATH=$( echo ${URL_PATH} | tr -d '\r' )
+        filter_url ${URL_PATH}
     fi
 done
 
-[[ "$URL_PATH" == *..* ]] && echo "HTTP/1.0 400 Bad Request\rn";echo "${REPLY_HEADERS}"; exit 
+if [[ "$URL_PATH" == *..* ]]; then
+    echo "HTTP/1.0 400 Bad Request\rn"
+    echo "${REPLY_HEADERS}"
+    exit 
+fi
 
 # If URL_PATH isn't set, return 400
 if [ -z "${URL_PATH}" ]; then
