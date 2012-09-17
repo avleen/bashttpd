@@ -116,7 +116,7 @@ elif [ -d ${URL_PATH} ]; then
     # If `tree` is installed, use that for pretty output.
     if which tree >/dev/null; then
         CONTENT_TYPE="text/html"
-        CONTENT_BODY=$( tree -H "" -L 1 --du -D ${URL_PATH} )
+        CONTENT_BODY=$( tree -H ${URL_PATH##$DOCROOT} -L 1 --du -D ${URL_PATH} )
     else
         CONTENT_TYPE="text/plain"
         CONTENT_BODY=$( ls -la ${URL_PATH} )
