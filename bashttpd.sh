@@ -17,6 +17,9 @@ fi
 # Use default /var/www/html if DOCROOT is not set.
 : ${DOCROOT:=/var/www/html}
 
+# Strip trailing slashes.
+DOCROOT="${DOCROOT%%/}"
+
 DATE=$( date +"%a, %d %b %Y %H:%M:%S %Z" )
 REPLY_HEADERS="Date: ${DATE}
 Expires: ${DATE}
@@ -122,7 +125,10 @@ elif [ -d ${URL_PATH} ]; then
         else
             tree_opts="--du"
         fi
-        CONTENT_BODY="$(tree -H "${URL_PATH##$DOCROOT}" -L 1 $tree_opts -D ${URL_PATH})"
+        # The baseHREF should be path without DOCROOT or trailing slashes.
+        basehref="${URL_PATH#$DOCROOT}"
+        basehref="${basehref%%/}"
+        CONTENT_BODY="$(tree -H "$basehref" -L 1 $tree_opts -D ${URL_PATH})"
     else
         CONTENT_TYPE="text/plain"
         CONTENT_BODY=$( ls -la ${URL_PATH} )
