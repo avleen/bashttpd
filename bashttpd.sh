@@ -116,7 +116,13 @@ elif [ -d ${URL_PATH} ]; then
     # If `tree` is installed, use that for pretty output.
     if which tree >/dev/null; then
         CONTENT_TYPE="text/html"
-        CONTENT_BODY=$( tree -H ${URL_PATH##$DOCROOT} -L 1 --du -D ${URL_PATH} )
+        # The --du option was added in 1.6.0.
+        if [[ $(tree --version | cut -f2 -d' ') == v1.5* ]]; then
+            tree_opts=
+        else
+            tree_opts="--du"
+        fi
+        CONTENT_BODY="$(tree -H "${URL_PATH##$DOCROOT}" -L 1 $tree_opts -D ${URL_PATH})"
     else
         CONTENT_TYPE="text/plain"
         CONTENT_BODY=$( ls -la ${URL_PATH} )
