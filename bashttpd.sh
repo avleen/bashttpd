@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-set -x
-
 # A simple HTTP server written in bash.
 #
 # Bashttpd will serve text files, and most binaries as Base64 encoded.
 #
 # Avleen Vig, 2012-09-13
-#
-#
 
 if [ "$(id -u)" = "0" ]; then
    echo "Hold on, tiger! Don't run this as root, k?" 1>&2
    exit 1
 fi
+
+recv() { echo "< $@" >&2; }
+send() { echo "> $@" >&2;
+         printf '%s\r\n' "$*"; }
 
 # Use default /var/www/html if DOCROOT is not set.
 : ${DOCROOT:=/var/www/html}
@@ -21,9 +21,17 @@ fi
 DOCROOT="${DOCROOT%%/}"
 
 DATE=$( date +"%a, %d %b %Y %H:%M:%S %Z" )
-REPLY_HEADERS="Date: ${DATE}
-Expires: ${DATE}
-Server: Slash Bin Slash Bash"
+declare -a RESPONSE_HEADERS=(
+      "Date: $DATE"
+   "Expires: $DATE"
+    "Server: Slash Bin Slash Bash"
+)
+
+send_response_headers() {
+   for i in "${RESPONSE_HEADERS[@]}"; do
+      send "$i"
+   done
+}
 
 function filter_url() {
     URL_PATH=$1
@@ -51,11 +59,11 @@ function get_content_length() {
 }
 
 function serve_500() {
-    echo "HTTP/1.0 500 Internal Server Error"
-    echo "$REPLY_HEADERS"
-    echo "Content-Type: text/plain"
-    echo
-    echo "Internal Server Error"
+    send "HTTP/1.0 500 Internal Server Error"
+    send_response_headers
+    send "Content-Type: text/plain"
+    send
+    send "Internal Server Error"
     exit
 }
 
@@ -67,6 +75,8 @@ fi
 while read line; do
     # If we've reached the end of the headers, break.
     line=$( echo ${line} | tr -d '\r' )
+    recv "$line"
+
     if [ -z "$line" ]; then
         break
     fi
@@ -79,16 +89,16 @@ while read line; do
 done
 
 if [[ "$URL_PATH" == *..* ]]; then
-    echo "HTTP/1.0 400 Bad Request\rn"
-    echo "${REPLY_HEADERS}"
+    send "HTTP/1.0 400 Bad Request\rn"
+    send_response_headers
     exit
 fi
 
 # If URL_PATH isn't set, return 400
 if [ -z "${URL_PATH}" ]; then
-    echo "HTTP/1.0 400 Bad Request"
-    echo "${REPLY_HEADERS}"
-    echo
+    send "HTTP/1.0 400 Bad Request"
+    send_response_headers
+    send
     exit
 fi
 
@@ -110,9 +120,9 @@ if [ -f ${URL_PATH} -a -r ${URL_PATH} ]; then
     HTTP_RESPONSE="HTTP/1.0 200 OK"
 elif [ -f ${URL_PATH} -a ! -r ${URL_PATH} ]; then
     # Return 403 for unreadable files
-    echo "HTTP/1.0 403 Forbidden"
-    echo "${REPLY_HEADERS}"
-    echo
+    send "HTTP/1.0 403 Forbidden"
+    send_response_headers
+    send
     exit
 elif [ -d ${URL_PATH} ]; then
     # Return 200 for directory listings.
@@ -137,21 +147,23 @@ elif [ -d ${URL_PATH} ]; then
     HTTP_RESPONSE="HTTP/1.0 200 OK"
 elif [ -d ${URL_PATH} -a ! -x ${URL_PATH} ]; then
     # Return 403 for non-listable directories
-    echo "HTTP/1.0 403 Forbidden"
-    echo "${REPLY_HEADERS}"
-    echo
+    send "HTTP/1.0 403 Forbidden"
+    send_response_headers
+    send
     exit
 else
-    echo "HTTP/1.0 404 Not Found"
-    echo "${REPLY_HEADERS}"
-    echo
+    send "HTTP/1.0 404 Not Found"
+    send_response_headers
+    send
     exit
 fi
 
-echo "${HTTP_RESPONSE}"
-echo "${REPLY_HEADERS}"
+send "${HTTP_RESPONSE}"
+send_response_headers
 #echo "Content-length: ${CONTENT_LENGTH}"
-echo "Content-type: ${CONTENT_TYPE}"
-echo
-echo "${CONTENT_BODY}"
+send "Content-type: ${CONTENT_TYPE}"
+send
+while read line; do
+   send "$line"
+done <<< "${CONTENT_BODY}"
 exit
