@@ -14,11 +14,20 @@ recv() { echo "< $@" >&2; }
 send() { echo "> $@" >&2;
          printf '%s\r\n' "$*"; }
 
-# Use default /var/www/html if DOCROOT is not set.
-: ${DOCROOT:=/var/www/html}
+warn() { echo "WARNING: $@" >&2; }
 
-# Strip trailing slashes.
-DOCROOT="${DOCROOT%%/}"
+[ -r bashttpd.conf ] || {
+   warn "bashttpd.conf does not exist.  Creating using defaults."
+   cat >bashttpd.conf <<-EOF
+	# bashttpd.conf - configuration for bashttpd
+	#
+	# DOCROOT is the root directory used for serving files
+	# It should not contain a trailing slash
+	DOCROOT=/var/www/html
+	EOF
+}
+
+source bashttpd.conf
 
 DATE=$( date +"%a, %d %b %Y %H:%M:%S %Z" )
 declare -a RESPONSE_HEADERS=(
