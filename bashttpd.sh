@@ -33,6 +33,21 @@ send_response_headers() {
    done
 }
 
+declare -a HTTP_ERROR=(
+    [400]="Bad Request"
+    [403]="Forbidden"
+    [404]="Not Found"
+    [500]="Internal Server Error"
+)
+
+fail_with() {
+    send "HTTP/1.0 $1 ${HTTP_ERROR[$1]}"
+    send_response_headers
+    send
+    send "$1 ${HTTP_ERROR[$1]}"
+    exit 1
+}
+
 function filter_url() {
     URL_PATH=$1
     URL_PATH=${URL_PATH//[^a-zA-Z0-9_~\-\.\/]/}
@@ -58,18 +73,9 @@ function get_content_length() {
     CONTENT_LENGTH=$( echo ${CONTENT_BODY} | wc -c )
 }
 
-function serve_500() {
-    send "HTTP/1.0 500 Internal Server Error"
-    send_response_headers
-    send "Content-Type: text/plain"
-    send
-    send "Internal Server Error"
-    exit
-}
-
 if ! [ -d "$DOCROOT" ]; then
     echo >&2 "Error: \$DOCROOT '$DOCROOT' does not exist."
-    serve_500
+    fail_with 500
 fi
 
 while read line; do
@@ -88,19 +94,8 @@ while read line; do
     fi
 done
 
-if [[ "$URL_PATH" == *..* ]]; then
-    send "HTTP/1.0 400 Bad Request\rn"
-    send_response_headers
-    exit
-fi
-
-# If URL_PATH isn't set, return 400
-if [ -z "${URL_PATH}" ]; then
-    send "HTTP/1.0 400 Bad Request"
-    send_response_headers
-    send
-    exit
-fi
+[[ "$URL_PATH" == *..* ]] && fail_with 400
+[ -z "${URL_PATH}" ]      && fail_with 400
 
 # Serve index file if exists in requested directory
 if [ -d ${URL_PATH} -a -f ${URL_PATH}/index.html -a -r ${URL_PATH}/index.html ]; then
@@ -120,10 +115,7 @@ if [ -f ${URL_PATH} -a -r ${URL_PATH} ]; then
     HTTP_RESPONSE="HTTP/1.0 200 OK"
 elif [ -f ${URL_PATH} -a ! -r ${URL_PATH} ]; then
     # Return 403 for unreadable files
-    send "HTTP/1.0 403 Forbidden"
-    send_response_headers
-    send
-    exit
+    fail_with 403
 elif [ -d ${URL_PATH} ]; then
     # Return 200 for directory listings.
     # If `tree` is installed, use that for pretty output.
@@ -147,15 +139,9 @@ elif [ -d ${URL_PATH} ]; then
     HTTP_RESPONSE="HTTP/1.0 200 OK"
 elif [ -d ${URL_PATH} -a ! -x ${URL_PATH} ]; then
     # Return 403 for non-listable directories
-    send "HTTP/1.0 403 Forbidden"
-    send_response_headers
-    send
-    exit
+    fail_with 403
 else
-    send "HTTP/1.0 404 Not Found"
-    send_response_headers
-    send
-    exit
+    fail_with 404
 fi
 
 send "${HTTP_RESPONSE}"
