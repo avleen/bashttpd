@@ -46,6 +46,7 @@ declare -a HTTP_ERROR=(
     [400]="Bad Request"
     [403]="Forbidden"
     [404]="Not Found"
+    [405]="Method Not Allowed"
     [500]="Internal Server Error"
 )
 
@@ -87,24 +88,40 @@ if ! [ -d "$DOCROOT" ]; then
     fail_with 500
 fi
 
-while read line; do
-    # If we've reached the end of the headers, break.
-    line=$( echo ${line} | tr -d '\r' )
+# Request-Line HTTP RFC 2616 $5.1
+read -r line || fail_bad_request
+
+# strip trailing CR if it exists
+line=${line%%$'\r'}
+recv "$line"
+
+read -r REQUEST_METHOD REQUEST_URI REQUEST_HTTP_VERSION <<<"$line"
+
+[ -n "$REQUEST_METHOD" ] && \
+[ -n "$REQUEST_URI" ] && \
+[ -n "$REQUEST_HTTP_VERSION" ] \
+   || fail_bad_request
+
+# Only GET is supported at this time
+[ "$REQUEST_METHOD" = "GET" ] || fail_with 405
+
+declare -a REQUEST_HEADERS
+
+while read -r line; do
+    line=${line%%$'\r'}
     recv "$line"
 
-    if [ -z "$line" ]; then
-        break
-    fi
+    # If we've reached the end of the headers, break.
+    [ -z "$line" ] && break
 
-    # Look for a GET request
-    if [[ $line == GET* ]]; then
-        URL_PATH="${DOCROOT}$( echo ${line} | cut -d' ' -f2 )"
-        filter_url ${URL_PATH}
-    fi
+    REQUEST_HEADERS+=("$line")
 done
 
+URL_PATH="$DOCROOT/$REQUEST_URI"
+filter_url "$URL_PATH"
+
 [[ "$URL_PATH" == *..* ]] && fail_with 400
-[ -z "${URL_PATH}" ]      && fail_with 400
+[ -z "$URL_PATH" ]        && fail_with 400
 
 # Serve index file if exists in requested directory
 if [ -d ${URL_PATH} -a -f ${URL_PATH}/index.html -a -r ${URL_PATH}/index.html ]; then
