@@ -58,17 +58,17 @@ fail_with() {
     exit 1
 }
 
-function filter_url() {
+filter_url() {
     URL_PATH=$1
     URL_PATH=${URL_PATH//[^a-zA-Z0-9_~\-\.\/]/}
 }
 
-function get_content_type() {
+get_content_type() {
     URL_PATH=$1
     CONTENT_TYPE=$( file -b --mime-type ${URL_PATH} )
 }
 
-function get_content_body() {
+get_content_body() {
     URL_PATH=$1
     CONTENT_TYPE=$2
     if [[ ${CONTENT_TYPE} =~ "^text" ]]; then
@@ -78,7 +78,7 @@ function get_content_body() {
     fi
 }
 
-function get_content_length() {
+get_content_length() {
     CONTENT_BODY="$1"
     CONTENT_LENGTH=$( echo ${CONTENT_BODY} | wc -c )
 }
