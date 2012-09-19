@@ -1,41 +1,74 @@
 #!/usr/bin/env bash
-set -x
-
 # A simple HTTP server written in bash.
 #
 # Bashttpd will serve text files, and most binaries as Base64 encoded.
 #
 # Avleen Vig, 2012-09-13
-#
-#
 
 if [ "$(id -u)" = "0" ]; then
    echo "Hold on, tiger! Don't run this as root, k?" 1>&2
    exit 1
 fi
 
-# Use default /var/www/html if DOCROOT is not set.
-: ${DOCROOT:=/var/www/html}
+recv() { echo "< $@" >&2; }
+send() { echo "> $@" >&2;
+         printf '%s\r\n' "$*"; }
 
-# Strip trailing slashes.
-DOCROOT="${DOCROOT%%/}"
+warn() { echo "WARNING: $@" >&2; }
+
+[ -r bashttpd.conf ] || {
+   warn "bashttpd.conf does not exist.  Creating using defaults."
+   cat >bashttpd.conf <<-EOF
+	# bashttpd.conf - configuration for bashttpd
+	#
+	# DOCROOT is the root directory used for serving files
+	# It should not contain a trailing slash
+	DOCROOT=/var/www/html
+	EOF
+}
+
+source bashttpd.conf
 
 DATE=$( date +"%a, %d %b %Y %H:%M:%S %Z" )
-REPLY_HEADERS="Date: ${DATE}
-Expires: ${DATE}
-Server: Slash Bin Slash Bash"
+declare -a RESPONSE_HEADERS=(
+      "Date: $DATE"
+   "Expires: $DATE"
+    "Server: Slash Bin Slash Bash"
+)
 
-function filter_url() {
+send_response_headers() {
+   for i in "${RESPONSE_HEADERS[@]}"; do
+      send "$i"
+   done
+}
+
+declare -a HTTP_ERROR=(
+    [400]="Bad Request"
+    [403]="Forbidden"
+    [404]="Not Found"
+    [405]="Method Not Allowed"
+    [500]="Internal Server Error"
+)
+
+fail_with() {
+    send "HTTP/1.0 $1 ${HTTP_ERROR[$1]}"
+    send_response_headers
+    send
+    send "$1 ${HTTP_ERROR[$1]}"
+    exit 1
+}
+
+filter_url() {
     URL_PATH=$1
     URL_PATH=${URL_PATH//[^a-zA-Z0-9_~\-\.\/]/}
 }
 
-function get_content_type() {
+get_content_type() {
     URL_PATH=$1
     CONTENT_TYPE=$( file -b --mime-type ${URL_PATH} )
 }
 
-function get_content_body() {
+get_content_body() {
     URL_PATH=$1
     CONTENT_TYPE=$2
     if [[ ${CONTENT_TYPE} =~ "^text" ]]; then
@@ -45,52 +78,50 @@ function get_content_body() {
     fi
 }
 
-function get_content_length() {
+get_content_length() {
     CONTENT_BODY="$1"
     CONTENT_LENGTH=$( echo ${CONTENT_BODY} | wc -c )
 }
 
-function serve_500() {
-    echo "HTTP/1.0 500 Internal Server Error"
-    echo "$REPLY_HEADERS"
-    echo "Content-Type: text/plain"
-    echo
-    echo "Internal Server Error"
-    exit
-}
-
 if ! [ -d "$DOCROOT" ]; then
     echo >&2 "Error: \$DOCROOT '$DOCROOT' does not exist."
-    serve_500
+    fail_with 500
 fi
 
-while read line; do
-    # If we've reached the end of the headers, break.
-    line=$( echo ${line} | tr -d '\r' )
-    if [ -z "$line" ]; then
-        break
-    fi
+# Request-Line HTTP RFC 2616 $5.1
+read -r line || fail_bad_request
 
-    # Look for a GET request
-    if [[ $line == GET* ]]; then
-        URL_PATH="${DOCROOT}$( echo ${line} | cut -d' ' -f2 )"
-        filter_url ${URL_PATH}
-    fi
+# strip trailing CR if it exists
+line=${line%%$'\r'}
+recv "$line"
+
+read -r REQUEST_METHOD REQUEST_URI REQUEST_HTTP_VERSION <<<"$line"
+
+[ -n "$REQUEST_METHOD" ] && \
+[ -n "$REQUEST_URI" ] && \
+[ -n "$REQUEST_HTTP_VERSION" ] \
+   || fail_bad_request
+
+# Only GET is supported at this time
+[ "$REQUEST_METHOD" = "GET" ] || fail_with 405
+
+declare -a REQUEST_HEADERS
+
+while read -r line; do
+    line=${line%%$'\r'}
+    recv "$line"
+
+    # If we've reached the end of the headers, break.
+    [ -z "$line" ] && break
+
+    REQUEST_HEADERS+=("$line")
 done
 
-if [[ "$URL_PATH" == *..* ]]; then
-    echo "HTTP/1.0 400 Bad Request\rn"
-    echo "${REPLY_HEADERS}"
-    exit
-fi
+URL_PATH="$DOCROOT/$REQUEST_URI"
+filter_url "$URL_PATH"
 
-# If URL_PATH isn't set, return 400
-if [ -z "${URL_PATH}" ]; then
-    echo "HTTP/1.0 400 Bad Request"
-    echo "${REPLY_HEADERS}"
-    echo
-    exit
-fi
+[[ "$URL_PATH" == *..* ]] && fail_with 400
+[ -z "$URL_PATH" ]        && fail_with 400
 
 # Serve index file if exists in requested directory
 if [ -d ${URL_PATH} -a -f ${URL_PATH}/index.html -a -r ${URL_PATH}/index.html ]; then
@@ -110,10 +141,7 @@ if [ -f ${URL_PATH} -a -r ${URL_PATH} ]; then
     HTTP_RESPONSE="HTTP/1.0 200 OK"
 elif [ -f ${URL_PATH} -a ! -r ${URL_PATH} ]; then
     # Return 403 for unreadable files
-    echo "HTTP/1.0 403 Forbidden"
-    echo "${REPLY_HEADERS}"
-    echo
-    exit
+    fail_with 403
 elif [ -d ${URL_PATH} ]; then
     # Return 200 for directory listings.
     # If `tree` is installed, use that for pretty output.
@@ -137,21 +165,17 @@ elif [ -d ${URL_PATH} ]; then
     HTTP_RESPONSE="HTTP/1.0 200 OK"
 elif [ -d ${URL_PATH} -a ! -x ${URL_PATH} ]; then
     # Return 403 for non-listable directories
-    echo "HTTP/1.0 403 Forbidden"
-    echo "${REPLY_HEADERS}"
-    echo
-    exit
+    fail_with 403
 else
-    echo "HTTP/1.0 404 Not Found"
-    echo "${REPLY_HEADERS}"
-    echo
-    exit
+    fail_with 404
 fi
 
-echo "${HTTP_RESPONSE}"
-echo "${REPLY_HEADERS}"
+send "${HTTP_RESPONSE}"
+send_response_headers
 #echo "Content-length: ${CONTENT_LENGTH}"
-echo "Content-type: ${CONTENT_TYPE}"
-echo
-echo "${CONTENT_BODY}"
+send "Content-type: ${CONTENT_TYPE}"
+send
+while read line; do
+   send "$line"
+done <<< "${CONTENT_BODY}"
 exit
