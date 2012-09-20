@@ -2,11 +2,11 @@ bashttpd is a simple, configurable web server written in bash
 
 Requirements:
   1. `bash`, any recent version should work
-  2. `socat` or `netcat` to handle the underlying sockets (I.e., 'socat TCP4-LISTEN:8080 EXEC:/usr/local/bin/bashttpd.sh', or 'netcat -lp 8080 -e ./bashttpd.sh')
+  2. `socat` or `netcat` to handle the underlying sockets (I.e., 'socat TCP4-LISTEN:8080 EXEC:/usr/local/bin/bashttpd', or 'netcat -lp 8080 -e ./bashttpd')
   3. A healthy dose of insanity
 
 Getting started:
-  1. Running bashttpd.sh for the first time will generate a default configuration file, bashttpd.conf
+  1. Running bashttpd for the first time will generate a default configuration file, bashttpd.conf
   2. Review bashttpd.conf and configure it as you want.
   3. Run bashttpd using netcat or socat, as listed above.
 
