@@ -4,17 +4,12 @@
 # Bashttpd will serve text files, and most binaries as Base64 encoded.
 #
 # Avleen Vig, 2012-09-13
-
-if [ "$(id -u)" = "0" ]; then
-   echo "Hold on, tiger! Don't run this as root, k?" 1>&2
-   exit 1
-fi
-
+warn() { echo "WARNING: $@" >&2; }
 recv() { echo "< $@" >&2; }
 send() { echo "> $@" >&2;
          printf '%s\r\n' "$*"; }
 
-warn() { echo "WARNING: $@" >&2; }
+[[ $UID = 0 ]] && warn "It is not recommended to run bashttpd as root."
 
 [ -r bashttpd.conf ] || {
    warn "bashttpd.conf does not exist.  Creating using defaults."
