@@ -112,11 +112,10 @@ while read -r line; do
     REQUEST_HEADERS+=("$line")
 done
 
-URL_PATH="$DOCROOT/$REQUEST_URI"
+URL_PATH="$DOCROOT$REQUEST_URI"
 filter_url "$URL_PATH"
 
 [[ "$URL_PATH" == *..* ]] && fail_with 400
-[ -z "$URL_PATH" ]        && fail_with 400
 
 # Serve index file if exists in requested directory
 if [ -d ${URL_PATH} -a -f ${URL_PATH}/index.html -a -r ${URL_PATH}/index.html ]; then
