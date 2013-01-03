@@ -30,3 +30,8 @@ HTTP protocol support:
   1.0: The server doesn't support Host: headers or other HTTP/1.1 features - it barely supports HTTP/1.0!
 
 As always, your patches/pull requests are welcome!
+
+Testimonials:
+
+"If anyone installs that anywhere, they might meet a gruesome end with a rusty fork"
+    --- BasHTTPd creator, maintainer
