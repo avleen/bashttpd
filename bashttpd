@@ -251,9 +251,10 @@ read -r REQUEST_METHOD REQUEST_URI REQUEST_HTTP_VERSION <<<"$line"
    || fail_with 400
 
 # Only GET is supported at this time
-[ "$REQUEST_METHOD" = "GET" ] || fail_with 405
+[ "$REQUEST_METHOD" = "GET" ] || [ "$REQUEST_METHOD" = "POST" ] || fail_with 405
 
 declare -a REQUEST_HEADERS
+declare -a POST_VALUES
 
 while read -r line; do
    line=${line%%$'\r'}
@@ -264,6 +265,17 @@ while read -r line; do
 
    REQUEST_HEADERS+=("$line")
 done
+
+if [[ "$REQUEST_METHOD" = "POST" ]]; then
+
+  length=$(echo ${REQUEST_HEADERS[-1]} | cut -d':' -f2)
+  read -n $length -r contents
+
+  _IFS=$IFS
+  IFS=\&
+  POST_VALUES=($contents)
+  IFS=$_IFS
+fi
 
 source bashttpd.conf
 fail_with 500
