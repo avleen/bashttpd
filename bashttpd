@@ -256,6 +256,7 @@ read -r REQUEST_METHOD REQUEST_URI REQUEST_HTTP_VERSION <<<"$line"
 declare -a REQUEST_HEADERS
 declare -a POST_VALUES
 
+length=0
 while read -r line; do
    line=${line%%$'\r'}
    recv "$line"
@@ -263,12 +264,15 @@ while read -r line; do
    # If we've reached the end of the headers, break.
    [ -z "$line" ] && break
 
+   if [[ "$line" =~ Content-Length ]]; then
+     length=$(echo $line | cut -d':' -f2)
+   fi
+
    REQUEST_HEADERS+=("$line")
 done
 
 if [[ "$REQUEST_METHOD" = "POST" ]]; then
 
-  length=$(echo ${REQUEST_HEADERS[-1]} | cut -d':' -f2)
   read -n $length -r contents
 
   _IFS=$IFS
