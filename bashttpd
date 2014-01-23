@@ -205,8 +205,13 @@ serve_dir_or_file_from() {
    [[ $URL_PATH == *..* ]] && fail_with 400
 
    # Serve index file if exists in requested directory
-   [[ -d $URL_PATH && -f $URL_PATH/index.html && -r $URL_PATH/index.html ]] && \
-      URL_PATH="$URL_PATH/index.html"
+   if [[ -d $URL_PATH ]]; then
+      if [[ -f $URL_PATH/index.html && -r $URL_PATH/index.html ]]; then
+         URL_PATH="$URL_PATH/index.html"
+      elif [[ -f $URL_PATH/index.htm && -r $URL_PATH/index.htm ]]; then
+         URL_PATH="$URL_PATH/index.htm"
+      fi
+   fi
 
    if [[ -f $URL_PATH ]]; then
       [[ -r $URL_PATH ]] && \
