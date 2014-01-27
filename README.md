@@ -20,7 +20,7 @@ Limitations:
   2. Doesn't strictly adhere to the HTTP spec.
 
 Security:
-  1. Only rudimentary input handling.  We would not running this on a public machine.
+  1. Only rudimentary input handling.  We would not recommend running this on a public machine.
 
 HTTP protocol support:
   403: Returned when a directory is not listable, or a file is not readable
