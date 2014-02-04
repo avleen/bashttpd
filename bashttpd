@@ -110,7 +110,8 @@ send() { echo "> $@" >&2;
 
 [[ $UID = 0 ]] && warn "It is not recommended to run bashttpd as root."
 
-DATE=$(date +"%a, %d %b %Y %H:%M:%S %Z")
+printf -v DATE '%(%a, %d %b %Y %H:%M:%S %Z)T' -1
+
 declare -a RESPONSE_HEADERS=(
       "Date: $DATE"
    "Expires: $DATE"
@@ -154,7 +155,16 @@ serve_file() {
 
    read -r CONTENT_TYPE   < <(file -b --mime-type "$file") && \
       add_response_header "Content-Type"   "$CONTENT_TYPE"
-   read -r CONTENT_LENGTH < <(stat -c'%s' "$file")         && \
+   CONTENT_LENGTH=$(
+      LC_ALL=C
+      IFS=""
+      a=0
+      while read -r -d '' piece; do
+         a=$((a+${#piece}+1))
+      done < "$file"
+      a=$((a+${#piece}))
+      echo $a
+      ) && \
       add_response_header "Content-Length" "$CONTENT_LENGTH"
 
    send_response_ok_exit < "$file"
