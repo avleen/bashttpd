@@ -265,5 +265,6 @@ while read -r line; do
    REQUEST_HEADERS+=("$line")
 done
 
-source bashttpd.conf
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source $DIR/bashttpd.conf
 fail_with 500
