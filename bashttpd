@@ -152,8 +152,21 @@ fail_with() {
 serve_file() {
    local file=$1
 
-   read -r CONTENT_TYPE   < <(file -b --mime-type "$file") && \
-      add_response_header "Content-Type"   "$CONTENT_TYPE"
+   CONTENT_TYPE=
+   case "$file" in
+     *\.css)
+       CONTENT_TYPE="text/css"
+       ;;
+     *\.js)
+       CONTENT_TYPE="text/javascript"
+       ;;
+     *)
+       read -r CONTENT_TYPE   < <(file -b --mime-type "$file")
+       ;;
+   esac
+
+   add_response_header "Content-Type"   "$CONTENT_TYPE";
+
    read -r CONTENT_LENGTH < <(stat -c'%s' "$file")         && \
       add_response_header "Content-Length" "$CONTENT_LENGTH"
 
