@@ -46,7 +46,7 @@ Limitations
 Security
 --------
 
-  1. Only rudimentary input handling.  We would not running this on a public machine.
+  1. Only rudimentary input handling.  We would not recommend running this on a public machine.
 
 HTTP protocol support
 ---------------------
