@@ -6,7 +6,7 @@
 #
 # Original author: Avleen Vig, 2012
 # Reworked by:     Josh Cartwright, 2012
-#                  rochajoel@google.com, 2017
+#                  rochajoel@gmail.com, 2017
 
 warn() { echo "WARNING: $@" >&2; }
 
