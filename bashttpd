@@ -6,6 +6,7 @@
 #
 # Original author: Avleen Vig, 2012
 # Reworked by:     Josh Cartwright, 2012
+#                  rochajoel@gmail.com, 2017
 
 warn() { echo "WARNING: $@" >&2; }
 
@@ -122,6 +123,7 @@ add_response_header() {
 }
 
 declare -a HTTP_RESPONSE=(
+   [100]="Continue"
    [200]="OK"
    [400]="Bad Request"
    [403]="Forbidden"
@@ -130,22 +132,27 @@ declare -a HTTP_RESPONSE=(
    [500]="Internal Server Error"
 )
 
-send_response() {
+send_http_headers() {
    local code=$1
    send "HTTP/1.0 $1 ${HTTP_RESPONSE[$1]}"
    for i in "${RESPONSE_HEADERS[@]}"; do
       send "$i"
    done
    send
+}
+
+send_response_ok_exit() {
+   send_http_headers 200;
+
    while read -r line; do
       send "$line"
    done
+
+   exit 0;
 }
 
-send_response_ok_exit() { send_response 200; exit 0; }
-
 fail_with() {
-   send_response "$1" <<< "$1 ${HTTP_RESPONSE[$1]}"
+   send_http_headers "$1" <<< "$1 ${HTTP_RESPONSE[$1]}"
    exit 1
 }
 
@@ -170,7 +177,11 @@ serve_file() {
    read -r CONTENT_LENGTH < <(stat -c'%s' "$file")         && \
       add_response_header "Content-Length" "$CONTENT_LENGTH"
 
-   send_response_ok_exit < "$file"
+   send_http_headers 200
+
+   cat "$file"
+
+   exit 0
 }
 
 serve_dir_with_tree()
@@ -264,7 +275,7 @@ read -r REQUEST_METHOD REQUEST_URI REQUEST_HTTP_VERSION <<<"$line"
    || fail_with 400
 
 # Only GET is supported at this time
-[ "$REQUEST_METHOD" = "GET" ] || fail_with 405
+[ "$REQUEST_METHOD" = "GET" ] || [ "$REQUEST_METHOD" = "POST" ] || fail_with 405
 
 declare -a REQUEST_HEADERS
 
@@ -274,9 +285,13 @@ while read -r line; do
 
    # If we've reached the end of the headers, break.
    [ -z "$line" ] && break
+   
+   [ "$REQUEST_METHOD" = "POST" ] && [[ $line == Content-Length:* ]] && POST_CONTENT_LENGTH=${line##* }
 
    REQUEST_HEADERS+=("$line")
 done
+
+[ "$REQUEST_METHOD" = "POST" ] && read -N $POST_CONTENT_LENGTH POST_PARAMETERS
 
 source "${BASH_SOURCE[0]%/*}"/bashttpd.conf
 fail_with 500
