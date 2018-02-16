@@ -249,6 +249,11 @@ unconditionally() {
    "$@" "$REQUEST_URI"
 }
 
+# Taken from https://stackoverflow.com/a/6265305/566849
+uri_decode() {
+    echo -e "$(sed 's/+/ /g;s/%\(..\)/\\x\1/g;')"
+}
+
 # Request-Line HTTP RFC 2616 $5.1
 read -r line || fail_with 400
 
@@ -265,6 +270,8 @@ read -r REQUEST_METHOD REQUEST_URI REQUEST_HTTP_VERSION <<<"$line"
 
 # Only GET is supported at this time
 [ "$REQUEST_METHOD" = "GET" ] || fail_with 405
+
+REQUEST_URI=$(uri_decode <<<"$REQUEST_URI")
 
 declare -a REQUEST_HEADERS
 
