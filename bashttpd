@@ -184,7 +184,7 @@ serve_dir_with_tree()
    [[ $tree_vers == v1.6* ]] && tree_opts="--du"
 
    send_response_ok_exit < \
-      <(tree -H "$2" -L 1 $tree_opts -D "$dir")
+      <(tree -H "${2%%/}" -L 1 $tree_opts -D "$dir")
 }
 
 serve_dir_with_ls()
