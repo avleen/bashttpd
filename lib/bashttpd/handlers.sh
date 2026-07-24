@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # lib/bashttpd/handlers.sh
 #
 # Content handlers invoked by the router DSL: static files, directory listings

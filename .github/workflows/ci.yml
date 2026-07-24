@@ -28,9 +28,6 @@ jobs:
   lint:
     name: Lint (shellcheck)
     runs-on: ubuntu-latest
-    # The codebase hasn't been shellcheck-cleaned yet; keep this advisory
-    # only (non-blocking) until it has, then flip continue-on-error to false.
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,4 +36,4 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
       - name: Run shellcheck
-        run: shellcheck bin/bashttpd lib/bashttpd/*.sh scripts/*.sh
+        run: shellcheck bashttpd bin/bashttpd lib/bashttpd/*.sh scripts/*.sh

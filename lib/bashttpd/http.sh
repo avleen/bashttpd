@@ -1,3 +1,8 @@
+# shellcheck shell=bash
+# shellcheck disable=SC2034
+# (This module communicates with server.sh and handlers via well-known
+# globals -- PARSE_STATUS, REQUEST_*, HEADER_*, RESPONSE_* -- whose
+# cross-file consumers are invisible to static analysis.)
 # lib/bashttpd/http.sh
 #
 # Pure HTTP protocol helpers: status text, URL decoding, path canonicalization,

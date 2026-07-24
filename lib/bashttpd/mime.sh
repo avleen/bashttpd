@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # lib/bashttpd/mime.sh
 #
 # MIME type resolution. A static extension table handles the common cases

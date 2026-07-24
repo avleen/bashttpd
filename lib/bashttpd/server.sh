@@ -1,3 +1,8 @@
+# shellcheck shell=bash
+# shellcheck disable=SC2034
+# (Sets per-request globals -- HTTP_HOST, REQUEST_PATH, QUERY_STRING,
+# REQUEST_BODY -- whose consumers are handlers and user config files
+# invisible to static analysis.)
 # lib/bashttpd/server.sh
 #
 # The per-connection request loop. stdin/stdout are one TCP (or TLS) connection.
@@ -36,6 +41,7 @@ server_log_access() {
 # docroot (GET/HEAD only) or a hello-world string.
 server_dispatch() {
     if [[ -n ${BASHTTPD_CONFIG:-} && -r ${BASHTTPD_CONFIG:-} ]]; then
+        # shellcheck source=/dev/null  # user-supplied config, unknowable here
         source "$BASHTTPD_CONFIG"
         return
     fi

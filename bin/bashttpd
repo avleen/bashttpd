@@ -124,6 +124,7 @@ case $SUBCMD in
         usage; exit 0 ;;
     version)
         # Load lib for the real version constant, but don't fail if missing.
+        # shellcheck source=lib/bashttpd/core.sh
         [[ -r $LIB_DIR/core.sh ]] && source "$LIB_DIR/core.sh"
         version; exit 0 ;;
     init-config)

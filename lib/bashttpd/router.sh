@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # lib/bashttpd/router.sh
 #
 # The configuration DSL. A bashttpd.conf is a bash script sourced once per

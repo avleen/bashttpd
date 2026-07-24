@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # lib/bashttpd/core.sh
 #
 # Core setup for bashttpd: version constants, logging helpers, and a couple
@@ -6,6 +7,7 @@
 
 # Version / server identity. Bumped from the legacy 1.x line.
 BASHTTPD_VERSION='2.0'
+# shellcheck disable=SC2034  # consumed by http.sh/server.sh response headers
 SERVER_TOKEN="bashttpd/${BASHTTPD_VERSION}"
 
 # ---------------------------------------------------------------------------
