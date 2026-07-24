@@ -1,0 +1,80 @@
+#
+# bashttpd.conf - example configuration for bashttpd 2.x
+#
+# The config is an ordinary bash script, sourced once per request. Its job is
+# to route the request by calling directives. The FIRST directive that matches
+# handles the request; later directives are skipped. If nothing matches,
+# bashttpd returns 404 (GET/HEAD) or 405 (other methods).
+#
+# Available request variables (set before this file is sourced):
+#   REQUEST_METHOD        e.g. GET, POST
+#   REQUEST_URI           raw target, e.g. /a/b%20c?x=1
+#   REQUEST_PATH          decoded, canonicalized path, e.g. /a/b c
+#   QUERY_STRING          everything after '?', e.g. x=1
+#   REQUEST_HTTP_VERSION  HTTP/1.0 or HTTP/1.1
+#   HTTP_HOST             the Host header value
+#   REQUEST_BODY          request body (for POST/PUT, up to the size cap)
+#
+# ---------------------------------------------------------------------------
+# Routing directives
+# ---------------------------------------------------------------------------
+#
+#   on_uri_match REGEX COMMAND [ARGS...]
+#     If REGEX matches REQUEST_PATH, run COMMAND with ARGS plus the regex
+#     capture groups (${BASH_REMATCH[@]}) appended -- same as legacy bashttpd.
+#
+#   on_method_match METHOD COMMAND [ARGS...]
+#     Run COMMAND when the request method equals METHOD.
+#
+#   unconditionally COMMAND [ARGS...]
+#     Catch-all. The decoded path is appended as the final argument.
+#
+# ---------------------------------------------------------------------------
+# Content commands
+# ---------------------------------------------------------------------------
+#
+#   serve_file FILE                 Serve a single file (MIME auto-detected).
+#   serve_dir DIRECTORY             HTML directory listing (pure bash).
+#   serve_dir_with_ls DIRECTORY     Plain-text `ls -la` listing (legacy).
+#   serve_dir_or_file_from DOCROOT  Map REQUEST_PATH under DOCROOT; serves
+#                                   index.html, files, or a listing; issues a
+#                                   301 to add a trailing slash for dirs.
+#   serve_static_string STRING      Serve a literal string as text/plain.
+#   redirect_to URL [CODE]          Redirect (default 302).
+#
+# Legacy aliases still work: add_response_header, fail_with,
+# send_response_ok_exit.
+#
+# ---------------------------------------------------------------------------
+# Examples
+# ---------------------------------------------------------------------------
+
+# Serve /etc/issue at exactly /issue:
+# on_uri_match '^/issue$' serve_file /etc/issue
+
+# A custom dynamic handler using a regex capture group. When a client requests
+# /say_hello_to/Ada, this serves "Hello, Ada!".
+#
+# on_uri_match appends ${BASH_REMATCH[@]} to the command's arguments, exactly
+# like legacy bashttpd: $1 is the full match (BASH_REMATCH[0]) and $2 is the
+# first capture group (BASH_REMATCH[1]).
+serve_hello() {
+    add_response_header 'Content-Type' 'text/plain; charset=utf-8'
+    send_response_ok_exit <<< "Hello, $2!"
+}
+on_uri_match '^/say_hello_to/(.*)$' serve_hello
+
+# Static site: serve everything else from a document root.
+DOCROOT=${BASHTTPD_DOCROOT:-/var/www/html}
+unconditionally serve_dir_or_file_from "$DOCROOT"
+
+# If no rule above matched, bashttpd returns 404 automatically.
+
+# ---------------------------------------------------------------------------
+# TLS
+# ---------------------------------------------------------------------------
+# TLS is configured on the command line, not here:
+#   scripts/gen-cert.sh                 # writes certs/server.{crt,key}
+#   bin/bashttpd --tls --cert certs/server.crt --key certs/server.key \
+#                -d /var/www/html
+# The default TLS port is 8443.
