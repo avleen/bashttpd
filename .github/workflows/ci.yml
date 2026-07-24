@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y socat ncat bats curl openssl
+
+      - name: Run test suite
+        run: |
+          if [[ -x ./tests/run ]]; then
+            ./tests/run
+          else
+            bats --recursive tests/
+          fi
+
+  lint:
+    name: Lint (shellcheck)
+    runs-on: ubuntu-latest
+    # The codebase hasn't been shellcheck-cleaned yet; keep this advisory
+    # only (non-blocking) until it has, then flip continue-on-error to false.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck
+        run: shellcheck bin/bashttpd lib/bashttpd/*.sh scripts/*.sh
