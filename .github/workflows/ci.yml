@@ -17,6 +17,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y socat ncat bats curl openssl
 
+      - name: Build single-file artifact
+        # Exercise the Makefile + inliner so the single-file build can't bitrot.
+        # (The single_file.bats test under tests/integration also rebuilds it.)
+        run: make build
+
+      - name: Smoke-test the single-file artifact
+        run: dist/bashttpd version
+
       - name: Run test suite
         run: |
           if [[ -x ./tests/run ]]; then
@@ -37,3 +45,9 @@ jobs:
 
       - name: Run shellcheck
         run: shellcheck bashttpd bin/bashttpd lib/bashttpd/*.sh scripts/*.sh
+
+      - name: Build and shellcheck the single-file artifact
+        # The generated dist/bashttpd must stay lint-clean too.
+        run: |
+          make build
+          shellcheck dist/bashttpd

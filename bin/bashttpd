@@ -15,7 +15,12 @@
 
 set -o pipefail
 
+# @@INLINE_LIBS_BEGIN@@
 # --- Locate ourselves and the library ---------------------------------------
+# NOTE: everything between the @@INLINE_LIBS_BEGIN@@ / @@INLINE_LIBS_END@@
+# markers is replaced by scripts/build-single.sh when producing the
+# self-contained dist/bashttpd (the lib modules are inlined and load_lib
+# becomes a no-op). Keep the markers in place.
 SELF=$(readlink -f "${BASH_SOURCE[0]}")
 BIN_DIR=${SELF%/*}
 REPO_DIR=${BIN_DIR%/*}
@@ -31,6 +36,7 @@ load_lib() {
         }
     done
 }
+# @@INLINE_LIBS_END@@
 
 usage() {
     cat <<'EOF'

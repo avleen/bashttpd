@@ -36,6 +36,29 @@ $ curl http://localhost:8080/
 Hello, world! bashttpd is running. Configure it with a bashttpd.conf or -d DOCROOT.
 ```
 
+### Single-file build
+
+The modular tree is convenient to hack on, but sometimes you just want one
+script to drop on a box. `make build` inlines the library modules into the CLI
+and writes a fully self-contained `dist/bashttpd` — it needs no `lib/`
+directory and behaves exactly like `bin/bashttpd` for every subcommand:
+
+```console
+$ make build
+$ dist/bashttpd serve -p 8080 -d ./public   # runs on its own, anywhere
+```
+
+Every tagged release also ships that artifact, so you can grab a ready-to-run
+server without cloning:
+
+```console
+$ curl -LO https://github.com/avleen/bashttpd/releases/latest/download/bashttpd
+$ chmod +x bashttpd && ./bashttpd serve -d ./public
+```
+
+`make test` runs the bats suite and `make lint` runs shellcheck over every
+shell source (`make check` does both).
+
 ## CLI reference
 
 ```

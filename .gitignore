@@ -1,0 +1,3 @@
+# Build artifacts. The single-file build is produced on demand / in CI and
+# attached to releases; it is never committed.
+/dist/
