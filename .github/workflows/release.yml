@@ -1,0 +1,39 @@
+name: Release
+
+# On any pushed v* tag: build the self-contained single file and publish it as
+# a release asset named `bashttpd`, so that
+#   curl -LO https://github.com/avleen/bashttpd/releases/latest/download/bashttpd
+# fetches a ready-to-run server.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish single-file release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # so `git describe --tags` can stamp the build
+
+      - name: Build single-file artifact
+        run: make build
+
+      - name: Smoke-test the artifact
+        run: |
+          test -x dist/bashttpd
+          dist/bashttpd version
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/bashttpd
+          fail_on_unmatched_files: true
+          generate_release_notes: true

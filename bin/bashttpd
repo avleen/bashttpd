@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+#
+# bin/bashttpd -- main executable for bashttpd 2.x.
+#
+# Subcommands:
+#   serve         Start a listener (default). Execs socat (or ncat) which forks
+#                 a `handle` child per connection.
+#   handle        Serve one connection on stdin/stdout (inetd / socat EXEC mode).
+#   init-config   Write an example bashttpd.conf.
+#   version       Print the version.
+#   help          Print usage.
+#
+# The server options are passed to `handle` children through the environment
+# (BASHTTPD_*), which is far more robust than quoting args through socat.
+
+set -o pipefail
+
+# @@INLINE_LIBS_BEGIN@@
+# --- Locate ourselves and the library ---------------------------------------
+# NOTE: everything between the @@INLINE_LIBS_BEGIN@@ / @@INLINE_LIBS_END@@
+# markers is replaced by scripts/build-single.sh when producing the
+# self-contained dist/bashttpd (the lib modules are inlined and load_lib
+# becomes a no-op). Keep the markers in place.
+SELF=$(readlink -f "${BASH_SOURCE[0]}")
+BIN_DIR=${SELF%/*}
+REPO_DIR=${BIN_DIR%/*}
+LIB_DIR=${BASHTTPD_LIB_DIR:-$REPO_DIR/lib/bashttpd}
+
+load_lib() {
+    local m
+    for m in core http mime router handlers server; do
+        # shellcheck source=/dev/null
+        source "$LIB_DIR/$m.sh" || {
+            printf 'bashttpd: failed to load %s\n' "$LIB_DIR/$m.sh" >&2
+            exit 1
+        }
+    done
+}
+# @@INLINE_LIBS_END@@
+
+usage() {
+    cat <<'EOF'
+Usage: bashttpd [serve] [options]
+       bashttpd handle                 (serve one connection on stdin/stdout)
+       bashttpd init-config [FILE]     (write an example config)
+       bashttpd version | help
+
+Options (serve):
+  -p, --port PORT        Listen port (default 8080; 8443 with --tls)
+  -a, --bind ADDR        Bind address (default 0.0.0.0)
+  -c, --config FILE      Config file (default ./bashttpd.conf if present)
+  -d, --docroot DIR      Serve this directory when no config is given
+      --tls              Enable TLS (requires --cert and --key)
+      --cert FILE        TLS certificate (PEM)
+      --key FILE         TLS private key (PEM)
+      --timeout SECS     Idle/keep-alive timeout (default 5)
+      --max-requests N   Max requests per connection (default 100)
+  -v, --verbose          Verbose logging to stderr
+      --inetd            Alias for `handle`
+      --version          Print version and exit
+  -h, --help             Show this help
+
+TLS certificates can be generated with scripts/gen-cert.sh.
+EOF
+}
+
+version() {
+    # Sourced constant if available, else a literal fallback.
+    printf 'bashttpd %s\n' "${BASHTTPD_VERSION:-2.0}"
+}
+
+die() {
+    printf 'bashttpd: %s\n' "$1" >&2
+    exit "${2:-1}"
+}
+
+# --- Determine subcommand ----------------------------------------------------
+SUBCMD='serve'
+case ${1:-} in
+    serve|handle|init-config|version|help)
+        SUBCMD=$1; shift ;;
+    --inetd)
+        SUBCMD='handle'; shift ;;
+    --version)
+        SUBCMD='version'; shift ;;
+    -h|--help)
+        SUBCMD='help'; shift ;;
+esac
+
+# --- Option defaults ---------------------------------------------------------
+# Defaults inherit from the environment so that `handle` children (which receive
+# their configuration via BASHTTPD_* from the serve parent) don't clobber it
+# when these values are re-exported below.
+PORT=''
+BIND='0.0.0.0'
+CONFIG=${BASHTTPD_CONFIG:-}
+DOCROOT=${BASHTTPD_DOCROOT:-}
+TLS=0
+CERT=''
+KEY=''
+TIMEOUT=${BASHTTPD_TIMEOUT:-5}
+MAX_REQUESTS=${BASHTTPD_MAX_REQUESTS:-100}
+VERBOSE=${BASHTTPD_VERBOSE:-0}
+
+# --- Parse options -----------------------------------------------------------
+while (( $# )); do
+    case $1 in
+        -p|--port)        PORT=$2; shift 2 ;;
+        -a|--bind)        BIND=$2; shift 2 ;;
+        -c|--config)      CONFIG=$2; shift 2 ;;
+        -d|--docroot)     DOCROOT=$2; shift 2 ;;
+        --tls)            TLS=1; shift ;;
+        --cert)           CERT=$2; shift 2 ;;
+        --key)            KEY=$2; shift 2 ;;
+        --timeout)        TIMEOUT=$2; shift 2 ;;
+        --max-requests)   MAX_REQUESTS=$2; shift 2 ;;
+        -v|--verbose)     VERBOSE=1; shift ;;
+        --version)        SUBCMD='version'; shift ;;
+        -h|--help)        SUBCMD='help'; shift ;;
+        --inetd)          SUBCMD='handle'; shift ;;
+        --)               shift; break ;;
+        -*)               die "unknown option: $1" ;;
+        *)                break ;;
+    esac
+done
+
+# --- Simple subcommands ------------------------------------------------------
+case $SUBCMD in
+    help)
+        usage; exit 0 ;;
+    version)
+        # Load lib for the real version constant, but don't fail if missing.
+        # shellcheck source=lib/bashttpd/core.sh
+        [[ -r $LIB_DIR/core.sh ]] && source "$LIB_DIR/core.sh"
+        version; exit 0 ;;
+    init-config)
+        dest=${1:-bashttpd.conf}
+        example="$REPO_DIR/etc/bashttpd.conf.example"
+        [[ -r $example ]] || die "example config not found at $example"
+        if [[ -e $dest ]]; then
+            die "refusing to overwrite existing $dest"
+        fi
+        cp -- "$example" "$dest" || die "could not write $dest"
+        printf 'Wrote example config to %s\n' "$dest"
+        exit 0 ;;
+esac
+
+# --- Resolve config defaults -------------------------------------------------
+# If no --config was given, use ./bashttpd.conf when it exists; otherwise fall
+# back to built-in behavior (no file is written to disk automatically). This
+# auto-detection only runs for serve mode -- handle children take their config
+# purely from the inherited environment.
+if [[ $SUBCMD != 'handle' && -z $CONFIG && -r ./bashttpd.conf ]]; then
+    CONFIG=$(readlink -f ./bashttpd.conf)
+fi
+if [[ -n $CONFIG && ! -r $CONFIG ]]; then
+    die "config file not readable: $CONFIG"
+fi
+if [[ -n $DOCROOT ]]; then
+    DOCROOT=$(readlink -f "$DOCROOT" 2>/dev/null) || die "bad docroot"
+    [[ -d $DOCROOT ]] || die "docroot is not a directory: $DOCROOT"
+fi
+
+# --- Export environment for handle children ----------------------------------
+export BASHTTPD_CONFIG=$CONFIG
+export BASHTTPD_DOCROOT=$DOCROOT
+export BASHTTPD_TIMEOUT=$TIMEOUT
+export BASHTTPD_MAX_REQUESTS=$MAX_REQUESTS
+export BASHTTPD_VERBOSE=$VERBOSE
+export BASHTTPD_LIB_DIR=$LIB_DIR
+
+# --- handle mode: serve one connection --------------------------------------
+if [[ $SUBCMD == 'handle' ]]; then
+    load_lib
+    core_init
+    server_handle_connection
+    exit 0
+fi
+
+# --- serve mode: exec a socket listener -------------------------------------
+# Port default depends on TLS.
+if [[ -z $PORT ]]; then
+    if (( TLS )); then PORT=8443; else PORT=8080; fi
+fi
+[[ $PORT == +([0-9]) ]] || die "invalid port: $PORT"
+
+if (( TLS )); then
+    [[ -n $CERT && -n $KEY ]] || die "--tls requires --cert and --key (see scripts/gen-cert.sh)"
+    [[ -r $CERT ]] || die "certificate not readable: $CERT"
+    [[ -r $KEY ]]  || die "key not readable: $KEY"
+fi
+
+# The command each listener runs for an accepted connection.
+HANDLER_CMD="$SELF handle"
+
+start_msg() {
+    local scheme='http'
+    (( TLS )) && scheme='https'
+    printf 'bashttpd %s listening on %s://%s:%s (%s)\n' \
+        "${BASHTTPD_VERSION:-2.0}" "$scheme" "$BIND" "$PORT" "$1" >&2
+    if [[ -n $CONFIG ]]; then
+        printf '  config:  %s\n' "$CONFIG" >&2
+    elif [[ -n $DOCROOT ]]; then
+        printf '  docroot: %s\n' "$DOCROOT" >&2
+    else
+        printf '  serving built-in hello-world (no config/docroot)\n' >&2
+    fi
+}
+
+if command -v socat >/dev/null 2>&1; then
+    start_msg 'socat'
+    if (( TLS )); then
+        exec socat \
+            "OPENSSL-LISTEN:$PORT,bind=$BIND,cert=$CERT,key=$KEY,verify=0,reuseaddr,fork" \
+            EXEC:"$HANDLER_CMD"
+    else
+        exec socat \
+            "TCP-LISTEN:$PORT,bind=$BIND,reuseaddr,fork" \
+            EXEC:"$HANDLER_CMD"
+    fi
+elif command -v ncat >/dev/null 2>&1; then
+    start_msg 'ncat'
+    if (( TLS )); then
+        exec ncat --listen --keep-open --ssl --ssl-cert "$CERT" --ssl-key "$KEY" \
+            --sh-exec "$HANDLER_CMD" "$BIND" "$PORT"
+    else
+        exec ncat --listen --keep-open --sh-exec "$HANDLER_CMD" "$BIND" "$PORT"
+    fi
+else
+    die "neither socat nor ncat found; cannot listen (use 'handle' via inetd/socat instead)"
+fi

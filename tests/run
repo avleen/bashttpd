@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# tests/run -- run the full bashttpd test suite (unit + integration) and
+# propagate the exit code, so this can be used both interactively and in CI.
+set -u
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+exec bats --recursive "$DIR"
